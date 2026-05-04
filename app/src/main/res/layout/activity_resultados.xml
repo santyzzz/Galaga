@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="#000000">
+
+    <TextView
+        android:id="@+id/txtTitulo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PARTIDA COMPLETADA"
+        android:textColor="#FFFFFF"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp"/>
+
+    <!-- Enemigos por tipo -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp">
+        <ImageView
+            android:id="@+id/imgAmarillo"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/enemigo_amarillo"
+            android:layout_marginEnd="12dp"/>
+        <TextView
+            android:id="@+id/txtAmarillos"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp">
+        <ImageView
+            android:id="@+id/imgRojo"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/enemigo_rojo"
+            android:layout_marginEnd="12dp"/>
+        <TextView
+            android:id="@+id/txtRojos"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="24dp">
+        <ImageView
+            android:id="@+id/imgVerde"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/enemigo_verde_2hp"
+            android:layout_marginEnd="12dp"/>
+        <TextView
+            android:id="@+id/txtVerdes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"/>
+    </LinearLayout>
+
+    <!-- Estadísticas -->
+    <TextView android:id="@+id/txtDisparos"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView android:id="@+id/txtPrecision"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView android:id="@+id/txtVidas"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView android:id="@+id/txtScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFD700"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="40dp"/>
+
+    <Button
+        android:id="@+id/btnVolverMenu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="VOLVER AL MENÚ"
+        android:textSize="18sp"
+        android:paddingHorizontal="32dp"
+        android:paddingVertical="12dp"/>
+
+</LinearLayout>
