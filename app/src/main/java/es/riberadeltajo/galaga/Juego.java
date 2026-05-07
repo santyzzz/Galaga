@@ -80,7 +80,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     // ══════════════════════════════════════════════════════════════
     private ArrayList<Disparo> lista_disparos = new ArrayList<>();
     private int frames_para_nuevo_disparo = 0;
-    private final int MAX_FRAMES_ENTRE_DISPARO = BucleJuego.MAX_FPS / 4; // 4 disparos/seg
+    private final int MAX_FRAMES_ENTRE_DISPARO = BucleJuego.MAX_FPS / 2; // 4 disparos/seg
     private boolean nuevo_disparo = false;
     private float velocidadDisparo;
 
@@ -106,6 +106,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     // ESTADO DEL JUGADOR — vidas, score y abducción
     // ══════════════════════════════════════════════════════════════
     public int vidas = 3;
+    private int topInset=0;
     public int score = 0;
     public int navesCapturadas = 0;      // cuántas naves tiene el verde capturadas (máx 2)
     public boolean controlesBloqueados = false; // se bloquea al ser abducido
@@ -134,7 +135,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     // NIVELES Y TRANSICIÓN
     // ══════════════════════════════════════════════════════════════
     public int nivelActual = 1;
-    private static final int MAX_NIVELES = 5;
+    private static final int MAX_NIVELES = 6;
 
     // Estados de la transición entre niveles
     private enum FaseTransicion { JUGANDO, NAVE_SUBIENDO, ESPERANDO, NAVE_BAJANDO }
@@ -226,6 +227,20 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         anchoPantalla = pantallaAncho;
         altoPantalla  = pantallaAlto;
 
+
+// En inicializarPosiciones(), reemplaza todo el bloque del topInset por esto:
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resourceId > 0) {
+                topInset = getResources().getDimensionPixelSize(resourceId);
+            } else {
+                topInset = (int)(25 * getResources().getDisplayMetrics().density); // fallback 25dp
+            }
+        } else {
+            topInset = (int)(25 * getResources().getDisplayMetrics().density);
+        }
+        topInset += (int)(8 * getResources().getDisplayMetrics().density); // margen extra
+
         // Nave: 10% del ancho de pantalla, alto proporcional
         anchoNave = pantallaAncho / 10;
         altoNave  = (int)(spriteNave.getHeight() * (float) anchoNave / spriteNave.getWidth());
@@ -247,16 +262,16 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
 
         // Posición inicial de la nave: centrada horizontalmente, en el 80% de la pantalla
         naveX = (pantallaAncho - anchoNave) / 2f;
-        naveY = (float)(pantallaAlto / 1.40);
+        naveY = (float)(pantallaAlto / 1.45);
 
         // Velocidad: cruza la pantalla completa en ~2 segundos
         velocidad = pantallaAncho / 60f;
 
         // Posiciones de los botones: pegados al borde inferior con un margen
-        int margen = 50;
+        int margen = 180;
         botonIzqX  = margen;
         botonIzqY  = pantallaAlto - altoBoton - margen;
-        botonDerX  = anchoBoton + margen + 150;
+        botonDerX  = anchoBoton + margen + 100;
         botonDerY  = pantallaAlto - altoBoton - margen;
         botonDispX = pantallaAncho - anchoBoton - margen;
         botonDispY = pantallaAlto - altoBoton - margen;
@@ -385,6 +400,18 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
                 }
             }
 
+            if (gestorEnemigos.jefeFinalDragon != null && gestorEnemigos.jefeFinalDragon.activo) {
+                for (int i = lista_disparos.size() - 1; i >= 0; i--) {
+                    Disparo d = lista_disparos.get(i);
+                    if (gestorEnemigos.jefeFinalDragon.colisionaCon(d)) {
+                        gestorEnemigos.jefeFinalDragon.recibirImpacto();
+                        lista_disparos.remove(i);
+                        disparosAcertados++;
+                        break;
+                    }
+                }
+            }
+
             // Mover la nave según el botón pulsado
             if (pulsandoDerecha)   moverNave(1);
             if (pulsandoIzquierda) moverNave(-1);
@@ -446,6 +473,10 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         if (sonidoListo) soundPool.play(idSonidoDisparo, 1f, 1f, 1, 0, 1f);
     }
 
+    public float getHudY() {
+        return topInset + 50f + 10f;
+    }
+
     // Movemos la nave en la dirección indicada (1 = derecha, -1 = izquierda)
     public void moverNave(int direccion) {
         naveX += direccion * velocidad;
@@ -458,7 +489,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         if(faseTransicion!=FaseTransicion.JUGANDO)return;
         lista_disparos.clear();
         gestorEnemigos.disparosEnemigos.clear();
-        if (nivelActual >= MAX_NIVELES) {
+        if (nivelActual >=MAX_NIVELES) {
             lista_disparos.clear();
             gestorEnemigos.disparosEnemigos.clear();
 
@@ -541,8 +572,9 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             // Resto de estadísticas
             canvas.drawText("DISPAROS: " + disparosRealizados, cx, y, p); y += lineH;
             canvas.drawText(String.format("PRECISION: %.1f%%", precision), cx, y, p); y += lineH;
-            canvas.drawText("VIDAS RESTANTES: " + vidas, cx, y, p); y += lineH;
-            canvas.drawText("SCORE FINAL: " + score, cx, y, p);
+            float hudY = topInset + p.getTextSize() + 10;
+            canvas.drawText("SCORE: " + score, 50, hudY, p);
+            canvas.drawText("VIDAS: " + vidas, anchoPantalla - 300, hudY, p);
             return;
         }
 
@@ -592,9 +624,20 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     //  ESTADO DEL JUGADOR — daño, game over
     // ══════════════════════════════════════════════════════════════════════════
 
-    // Cuando recibimos daño descontamos una vida, bloqueamos los controles
-    // y contamos la nave como capturada. Si llegamos a 0 vidas, game over.
+    // Cuando recibimos daño descontamos una vida.
     public void recibirDanio() {
+        vidas--;
+        // Si no estamos abducidos, nos aseguramos que los controles estén LIBRES
+        if (navesCapturadas == 0) {
+            controlesBloqueados = false;
+        }
+        if (vidas <= 0) {
+            Log.d("pruebas", "GAME OVER");
+        }
+    }
+
+    // Cuando somos abducidos por un verde, bloqueamos controles.
+    public void serAbducido() {
         vidas--;
         if (navesCapturadas < 2) navesCapturadas++;
         controlesBloqueados = true;

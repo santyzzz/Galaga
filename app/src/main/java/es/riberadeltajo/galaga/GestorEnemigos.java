@@ -35,50 +35,52 @@ public class GestorEnemigos {
     private static final int FRAMES_ENTRE_ATAQUES = 150; // ~5 seg a 30fps
 
     // ── Configuración de niveles ──────────────────────────────────────────────
-// Aquí defines cuántos enemigos de cada tipo hay en cada nivel.
-// Cambia estos arrays para ajustar la dificultad sin tocar nada más.
     private static final int[] VERDES_POR_NIVEL   = { 5, 6, 4, 8, 10 };
     private static final int[] AMARILLOS_POR_NIVEL = { 5, 6, 8, 8, 10 };
     private static final int[] ROJOS_POR_NIVEL     = { 5, 4, 8, 9, 10 };
     public int nivelActual=1;
+    public JefeFinalDragon jefeFinalDragon=null;
 
-    // Devuelven el primer frame de cada tipo para usarlo en las estadísticas
     public Bitmap getSpriteAmarillo() { return framesAmarillo != null ? framesAmarillo[0] : null; }
     public Bitmap getSpriteRojo()     { return framesRojo     != null ? framesRojo[0]     : null; }
     public Bitmap getSpriteVerde()    { return framesVerde2hp  != null ? framesVerde2hp[0]  : null; }
 
-
-    // ── Otros ─────────────────────────────────────────────────────────────────
     private boolean sonidoIntroReproducido = false;
 
-//====================================================================================
-    //                  PROGRAMACION
-//====================================================================================
-
-
-
-
-
-    // ── Constructor ───────────────────────────────────────────────────────────
-
-    // Inicializa el gestor, carga los sprites y prepara la formación del nivel 1
     public GestorEnemigos(Juego juego) {
         this.juego = juego;
         cargarSprites();
-        configurarNivel(1);
+        configurarNivel(nivelActual);
         formacionVelocidad = juego.anchoPantalla / 250f;
     }
 
-
-    // ── Métodos públicos ──────────────────────────────────────────────────────
-    // Bucle principal del gestor: controla entradas, formación, ataques y disparos
     public void actualizar() {
         if (!sonidoIntroReproducido) {
             juego.reproducirSonidoNivel();
             sonidoIntroReproducido = true;
         }
 
-        // Suelta los enemigos de uno en uno con un pequeño retardo entre cada uno
+        if(jefeFinalDragon!= null && jefeFinalDragon.activo){
+            jefeFinalDragon.actualizar();
+            // Colisión disparos del jefe con la nave
+            for(int i= jefeFinalDragon.disparos.size()-1 ; i>=0; i--){
+                DisparoJefeDragon d= jefeFinalDragon.disparos.get(i);
+                if(d.colisionaConNave(juego.naveX, juego.naveY, juego.spriteNave.getWidth(), juego.spriteNave.getHeight())){
+                    jefeFinalDragon.disparos.remove(i);
+                    juego.recibirDanio(); // No bloquea controles
+                    break;
+                }
+            }
+            // Melee: si el jefe toca la nave
+            if(jefeFinalDragon.tocaLaNave()){
+                juego.recibirDanio(); // No bloquea controles
+                jefeFinalDragon.estadoAtaque = JefeFinalDragon.EstadoAtaque.MELEE_VOLVIENDO;
+            }
+            // En nivel del jefe, solo actualizamos los disparos enemigos que pudieran quedar
+            actualizarDisparosRestantes();
+            return; 
+        }
+
         if (enemigosSoltados < enemigos.size()) {
             contadorEntrada++;
             if (contadorEntrada >= DELAY_ENTRE_ENEMIGOS) {
@@ -88,7 +90,6 @@ public class GestorEnemigos {
             }
         }
 
-        // Marca la formación como completa cuando todos han llegado a su sitio
         if (!formacionCompleta && enemigosSoltados == enemigos.size()) {
             formacionCompleta = true;
             for (Enemigo e : enemigos) {
@@ -102,25 +103,19 @@ public class GestorEnemigos {
             gestionarAtaques();
         }
 
-        // Actualiza la lógica de cada enemigo individualmente
         for (Enemigo e : enemigos) e.actualizar();
 
-        // Detecta cuando un verde entra en modo abducción y avisa al juego
         for (Enemigo e : enemigos) {
             if (e.tipo == Enemigo.Tipo.VERDE
                     && e.estado == Enemigo.Estado.ABDUCIENDO
                     && e.contadorAbduccion == 1) {
-                juego.recibirDanio();
+                juego.serAbducido(); // Este SI bloquea controles
                 e.esCapturador = true;
                 juego.reproducirSonidoAbsorcion();
             }
         }
 
-        // Mueve los disparos enemigos y elimina los que salen de pantalla
-        for (int i = disparosEnemigos.size() - 1; i >= 0; i--) {
-            disparosEnemigos.get(i).actualizar();
-            if (disparosEnemigos.get(i).fueraDePantalla()) disparosEnemigos.remove(i);
-        }
+        actualizarDisparosRestantes();
 
         boolean todosMuertos=true;
         for(Enemigo e: enemigos){
@@ -129,21 +124,27 @@ public class GestorEnemigos {
                 break;
             }
         }
-        if(todosMuertos&& !enemigos.isEmpty()){
+        if(todosMuertos && !enemigos.isEmpty()){
             juego.nivelSuperado();
         }
     }
 
-    // Dibuja todos los enemigos y sus disparos en el canvas
+    private void actualizarDisparosRestantes() {
+        for (int i = disparosEnemigos.size() - 1; i >= 0; i--) {
+            disparosEnemigos.get(i).actualizar();
+            if (disparosEnemigos.get(i).fueraDePantalla()) disparosEnemigos.remove(i);
+        }
+    }
+
     public void renderizar(Canvas canvas, Paint paint) {
+        if (jefeFinalDragon != null && jefeFinalDragon.activo) {
+            jefeFinalDragon.dibujar(canvas, paint);
+            return;
+        }
         for (Enemigo e        : enemigos)         e.dibujar(canvas, paint);
         for (DisparoEnemigo d : disparosEnemigos) d.dibujar(canvas, paint);
     }
 
-
-    // ── Métodos privados ──────────────────────────────────────────────────────
-
-    // Carga los spritesheets desde los recursos y los corta en frames individuales
     private void cargarSprites() {
         framesAmarillo = extraerFrames(BitmapFactory.decodeResource(juego.getResources(), R.drawable.enemigo_amarillo));
         framesRojo     = extraerFrames(BitmapFactory.decodeResource(juego.getResources(), R.drawable.enemigo_rojo));
@@ -152,7 +153,6 @@ public class GestorEnemigos {
         framesRayo     = extraerFramesRayo(BitmapFactory.decodeResource(juego.getResources(), R.drawable.rayo_abduccion));
     }
 
-    // Corta el spritesheet del rayo en 4 frames y los escala al tamaño de pantalla
     private Bitmap[] extraerFramesRayo(Bitmap sheet) {
         int numFrames = 4;
         Bitmap[] frames = new Bitmap[numFrames];
@@ -167,7 +167,6 @@ public class GestorEnemigos {
         return frames;
     }
 
-    // Corta un spritesheet de 8 frames, elimina el margen de cada celda y escala el resultado
     private Bitmap[] extraerFrames(Bitmap sheet) {
         Bitmap[] frames = new Bitmap[NUM_FRAMES];
         int fw     = sheet.getWidth() / NUM_FRAMES;
@@ -185,8 +184,11 @@ public class GestorEnemigos {
         return frames;
     }
 
-    // Construye la formación del nivel indicado según los arrays de configuración
     public void configurarNivel(int nivel) {
+        if(nivel==6){
+            configurarNivelJefe();
+            return;
+        }
         enemigos.clear();
         disparosEnemigos.clear();
         enemigosSoltados  = 0;
@@ -194,7 +196,7 @@ public class GestorEnemigos {
         formacionCompleta = false;
         contadorAtaque    = 0;
 
-        int idx       = nivel - 1; // los arrays empiezan en 0
+        int idx       = nivel - 1;
         int numVerdes   = VERDES_POR_NIVEL[idx];
         int numAmarillos = AMARILLOS_POR_NIVEL[idx];
         int numRojos    = ROJOS_POR_NIVEL[idx];
@@ -205,14 +207,23 @@ public class GestorEnemigos {
         int espaciadoX = framesAmarillo[0].getWidth()  + 30;
         int espaciadoY = framesAmarillo[0].getHeight() + 20;
 
-        // Calculamos cuántas filas y columnas necesitamos
-        int maxPorFila = 7; // máximo de enemigos por fila
+        int maxPorFila = 7;
         agregarFila(Enemigo.Tipo.VERDE,    numVerdes,   0, maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
         agregarFila(Enemigo.Tipo.AMARILLO, numAmarillos, 1, maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
         agregarFila(Enemigo.Tipo.ROJO,     numRojos,    2, maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
     }
 
-    // Añade una fila de enemigos del tipo indicado, distribuyéndolos en filas de maxPorFila
+    private void configurarNivelJefe() {
+        enemigos.clear();
+        disparosEnemigos.clear();
+        enemigosSoltados=0;
+        formacionCompleta=false;
+        contadorAtaque=0;
+        sonidoIntroReproducido=false;
+        jefeFinalDragon=new JefeFinalDragon(juego);
+        jefeFinalDragon.activo=true;
+    }
+
     private void agregarFila(Enemigo.Tipo tipo, int cantidad, int filaBase,
                              int maxPorFila, int espaciadoX, int espaciadoY,
                              int pantW, int pantH) {
@@ -237,7 +248,6 @@ public class GestorEnemigos {
         }
     }
 
-    // Devuelve los frames correspondientes al tipo de enemigo y a si está sano o dañado
     private Bitmap[] getFrames(Enemigo.Tipo tipo, boolean sano) {
         switch (tipo) {
             case AMARILLO: return framesAmarillo;
@@ -247,7 +257,6 @@ public class GestorEnemigos {
         }
     }
 
-    // Desplaza toda la formación de lado a lado rebotando en los bordes de pantalla
     private void moverFormacion() {
         float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE;
         for (Enemigo e : enemigos) {
@@ -261,7 +270,6 @@ public class GestorEnemigos {
         if (maxX >= juego.anchoPantalla - MARGEN) formacionDireccion = -1;
         if (minX <= MARGEN)                        formacionDireccion =  1;
 
-        // Actualiza tanto la posición actual como el target para no perder el hueco en la formación
         for (Enemigo e : enemigos) {
             if (e.estado != Enemigo.Estado.MUERTO && e.estado != Enemigo.Estado.ATACANDO) {
                 e.targetX += formacionVelocidad * formacionDireccion;
@@ -272,8 +280,6 @@ public class GestorEnemigos {
         }
     }
 
-    // Cada cierto tiempo elige un enemigo al azar para atacar;
-    // los verdes intentan abducir la nave, los otros bajan disparando en abanico
     private void gestionarAtaques() {
         contadorAtaque++;
         if (contadorAtaque < FRAMES_ENTRE_ATAQUES) return;
@@ -288,7 +294,6 @@ public class GestorEnemigos {
             }
         }
 
-        // El verde tiene un 50% de probabilidad de atacar si hay naves disponibles para capturar
         if (!candidatosVerdes.isEmpty() && Math.random() < 0.5 && juego.navesCapturadas < 2) {
             Enemigo verde = candidatosVerdes.get((int)(Math.random() * candidatosVerdes.size()));
             verde.estado           = Enemigo.Estado.ATACANDO;
@@ -303,10 +308,9 @@ public class GestorEnemigos {
             float vel  = juego.altoPantalla / (2.5f * BucleJuego.MAX_FPS);
             verde.ataqueVX = (dx / dist) * vel;
             verde.ataqueVY = (dy / dist) * vel;
-            return; // un solo ataque por turno
+            return;
         }
 
-        // Si no ataca ningún verde, lanza un enemigo normal con 3 disparos en abanico
         if (candidatosOtros.isEmpty()) return;
         Enemigo atacante = candidatosOtros.get((int)(Math.random() * candidatosOtros.size()));
         atacante.estado            = Enemigo.Estado.ATACANDO;
