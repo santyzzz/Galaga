@@ -160,11 +160,27 @@ public class Enemigo {
                         float naveCY = targetNaveY + 25f;
                         float dist   = (float) Math.sqrt((cx - naveCX) * (cx - naveCX) + (cy - naveCY) * (cy - naveCY));
                         if (dist < 80f) {
-                            estado           = Estado.ABDUCIENDO;
-                            abduciendoNave   = true;
+                            estado            = Estado.ABDUCIENDO;
+                            abduciendoNave    = true;
                             contadorAbduccion = 0;
                             ataqueVX = 0;
                             ataqueVY = 0;
+
+                            // Área de abducción: rectángulo centrado en el verde
+                            // Solo bloquea si la nave está dentro de este rectángulo en este momento
+                            float areaX1 = x - 60f;
+                            float areaX2 = x + ancho + 60f;
+                            float areaY1 = y - 60f;
+                            float areaY2 = y + alto + 60f;
+
+                             naveCX = juego.naveX + juego.spriteNave.getWidth()  / 2f;
+                             naveCY = juego.naveY + juego.spriteNave.getHeight() / 2f;
+
+                            if (naveCX >= areaX1 && naveCX <= areaX2 &&
+                                    naveCY >= areaY1 && naveCY <= areaY2) {
+                                juego.serAbducido(); // nave dentro del área → bloquea
+                            }
+                            // Si la nave se movió fuera del área → no bloquea, el verde sube solo
                             return;
                         }
                     }

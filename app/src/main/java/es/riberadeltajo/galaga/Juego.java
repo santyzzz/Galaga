@@ -641,9 +641,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         vidas--;
         if (navesCapturadas < 2) navesCapturadas++;
         controlesBloqueados = true;
-        if (vidas <= 0) {
-            Log.d("pruebas", "GAME OVER");
-        }
+        if (vidas <= 0) Log.d("pruebas", "GAME OVER");
     }
 
 

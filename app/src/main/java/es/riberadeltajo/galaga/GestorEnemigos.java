@@ -109,8 +109,7 @@ public class GestorEnemigos {
             if (e.tipo == Enemigo.Tipo.VERDE
                     && e.estado == Enemigo.Estado.ABDUCIENDO
                     && e.contadorAbduccion == 1) {
-                juego.serAbducido(); // Este SI bloquea controles
-                e.esCapturador = true;
+                e.esCapturador = true;           // ← solo esto
                 juego.reproducirSonidoAbsorcion();
             }
         }
