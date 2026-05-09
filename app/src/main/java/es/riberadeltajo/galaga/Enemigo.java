@@ -23,6 +23,7 @@ public class Enemigo {
     public Tipo tipo;
     public Estado estado = Estado.ESPERANDO;
     public boolean esCapturador = false;
+    public boolean capturoNave = false;
 
     // ── Animación del sprite ──────────────────────────────────────────────────
     private Bitmap[] frames;           // frames del sprite normal
@@ -54,7 +55,7 @@ public class Enemigo {
     public int contadorAbduccion  = 0;
     private static final int FRAMES_ABDUCCION    = 90;
     private static final int FRAMES_MOSTRAR_RAYO = 60;
-
+    public static final int FRAMES_MOSTRAR_RAYO_PUBLIC = FRAMES_MOSTRAR_RAYO;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -152,13 +153,13 @@ public class Enemigo {
                     x += ataqueVX;
                     y += ataqueVY;
 
-                    // Si es verde y llega cerca de la nave, inicia la abducción
                     if (tipo == Tipo.VERDE) {
                         float cx     = x + ancho / 2f;
                         float cy     = y + alto / 2f;
-                        float naveCX = targetNaveX + 25f;
-                        float naveCY = targetNaveY + 25f;
+                        float naveCX = juego.naveX + juego.spriteNave.getWidth()  / 2f;
+                        float naveCY = juego.naveY + juego.spriteNave.getHeight() / 2f;
                         float dist   = (float) Math.sqrt((cx - naveCX) * (cx - naveCX) + (cy - naveCY) * (cy - naveCY));
+
                         if (dist < 80f) {
                             estado            = Estado.ABDUCIENDO;
                             abduciendoNave    = true;
@@ -166,26 +167,22 @@ public class Enemigo {
                             ataqueVX = 0;
                             ataqueVY = 0;
 
-                            // Área de abducción: rectángulo centrado en el verde
-                            // Solo bloquea si la nave está dentro de este rectángulo en este momento
                             float areaX1 = x - 60f;
                             float areaX2 = x + ancho + 60f;
                             float areaY1 = y - 60f;
                             float areaY2 = y + alto + 60f;
 
-                             naveCX = juego.naveX + juego.spriteNave.getWidth()  / 2f;
-                             naveCY = juego.naveY + juego.spriteNave.getHeight() / 2f;
-
                             if (naveCX >= areaX1 && naveCX <= areaX2 &&
                                     naveCY >= areaY1 && naveCY <= areaY2) {
-                                juego.serAbducido(); // nave dentro del área → bloquea
+                                capturoNave  = true;
+                                esCapturador = true;
+                                juego.serAbducido();
+                                juego.reproducirSonidoAbsorcion();
                             }
-                            // Si la nave se movió fuera del área → no bloquea, el verde sube solo
                             return;
                         }
                     }
 
-                    // Si sale por abajo, reaparece arriba y vuelve a la formación
                     if (y > pantAlto) {
                         y = -alto;
                         volviendoFormacion = true;
