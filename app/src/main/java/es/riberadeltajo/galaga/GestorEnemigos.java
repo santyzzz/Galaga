@@ -203,15 +203,24 @@ public class GestorEnemigos {
         int espaciadoX = framesAmarillo[0].getWidth()  + 30;
         int espaciadoY = framesAmarillo[0].getHeight() + 20;
 
-        // Máximo de enemigos por fila: crece con el nivel (7 → 9 → 11...)
-        // Esto hace que en niveles altos se formen filas más largas
-        int maxPorFila = 7 + (nivel - 1) * 2;
+        // Máximo de enemigos por fila calculado según el ancho real de la pantalla.
+        // Dejamos MARGEN*2 de espacio a cada lado para que la formación pueda rebotar
+        // sin que ningún enemigo salga de la pantalla.
+        int anchoDisponible = pantW - (int)(MARGEN * 2);
+        int maxPorFila      = Math.max(1, anchoDisponible / espaciadoX);
 
-        // Fila 0 = VERDE, fila 1 = AMARILLO, fila 2 = ROJO
-        // En niveles altos hay enemigos suficientes para ocupar 2 o más filas por tipo
-        agregarFila(Enemigo.Tipo.VERDE,    numVerdes,   0, maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
-        agregarFila(Enemigo.Tipo.AMARILLO, numAmarillos, 1, maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
-        agregarFila(Enemigo.Tipo.ROJO,     numRojos,    2, maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
+        // Calculamos cuántas filas ocupa cada tipo para que filaBase se acumule
+        // correctamente: si los verdes necesitan 2 filas, los amarillos empiezan en la 2.
+        int filasVerdes    = (int) Math.ceil((double) numVerdes    / maxPorFila);
+        int filasAmarillos = (int) Math.ceil((double) numAmarillos / maxPorFila);
+
+        int filaBaseVerdes    = 0;
+        int filaBaseAmarillos = filaBaseVerdes    + filasVerdes;
+        int filaBaseRojos     = filaBaseAmarillos + filasAmarillos;
+
+        agregarFila(Enemigo.Tipo.VERDE,    numVerdes,    filaBaseVerdes,    maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
+        agregarFila(Enemigo.Tipo.AMARILLO, numAmarillos, filaBaseAmarillos, maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
+        agregarFila(Enemigo.Tipo.ROJO,     numRojos,     filaBaseRojos,     maxPorFila, espaciadoX, espaciadoY, pantW, pantH);
     }
 
     private void configurarNivelJefe() {
@@ -243,12 +252,13 @@ public class GestorEnemigos {
             if (col >= maxPorFila) { col = 0; fila++; }
 
             int   totalEnFila = Math.min(cantidad - fila * maxPorFila, maxPorFila);
-            float startX      = (pantW - totalEnFila * espaciadoX) / 2f;
-            float tx          = startX + col * espaciadoX;
-            float ty          = startY + (filaBase + fila) * espaciadoY;
+            // Centramos dentro del ancho disponible (entre los dos márgenes de rebote)
+            // para que ningún enemigo empiece pegado al borde ni sobresalga
+            float zonaAncho = pantW - MARGEN * 2;
+            float startX    = MARGEN + (zonaAncho - totalEnFila * espaciadoX) / 2f;
+            float tx        = startX + col * espaciadoX;
+            float ty        = startY + (filaBase + fila) * espaciadoY;
 
-            // Alternamos el lado de entrada para que la formación entre de forma
-            // más vistosa: los pares por la derecha, los impares por la izquierda
             boolean porDerecha = (col % 2 == 0);
 
             Enemigo enemigo = new Enemigo(tipo, tx, ty, porDerecha,
