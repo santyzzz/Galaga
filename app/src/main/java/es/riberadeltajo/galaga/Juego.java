@@ -23,9 +23,6 @@ import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
 
-// Juego es la vista principal donde ocurre todo. Extiende SurfaceView para poder
-// dibujar en ella de forma eficiente, e implementa SurfaceHolder.Callback para
-// saber cuándo la superficie está lista, cambia o se destruye.
 public class Juego extends SurfaceView implements SurfaceHolder.Callback {
 
     private static final String TAG = Juego.class.getSimpleName();
@@ -49,7 +46,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     private boolean enFaseIntro            = true;
     private boolean introSonidoReproducido = false;
     private int     contadorIntro          = 0;
-    private static final int DURACION_INTRO = 90; // 3 segundos a 30fps
+    private static final int DURACION_INTRO = 90;
     private android.graphics.Typeface fuenteMenu;
 
     private int     idSonidoIntroNivel;
@@ -64,37 +61,41 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     Bitmap spriteFlechaDer;
     Bitmap spriteBotonDisparar;
 
-    // Tamaños calculados según pantalla
     private int anchoNave, altoNave;
     private int anchoBoton, altoBoton;
     private int anchoDisparo, altoDisparo;
 
     // ══════════════════════════════════════════════════════════════
-    // NAVE DEL JUGADOR — posición y movimiento
+    // NAVE DEL JUGADOR
     // ══════════════════════════════════════════════════════════════
     public float naveX, naveY;
-    private float velocidad; // píxeles por frame
+    private float velocidad;
 
     // ══════════════════════════════════════════════════════════════
     // DISPAROS DEL JUGADOR
     // ══════════════════════════════════════════════════════════════
-    private ArrayList<Disparo> lista_disparos = new ArrayList<>();
-    private int frames_para_nuevo_disparo = 0;
-    private final int MAX_FRAMES_ENTRE_DISPARO = BucleJuego.MAX_FPS / 2;
-    private boolean nuevo_disparo = false;
-    private float velocidadDisparo;
+    private ArrayList<Disparo> lista_disparos        = new ArrayList<>();
+    private int     frames_para_nuevo_disparo        = 0;
+    private final int MAX_FRAMES_ENTRE_DISPARO       = BucleJuego.MAX_FPS / 2;
+    private boolean nuevo_disparo                    = false;
+    private float   velocidadDisparo;
 
     // ══════════════════════════════════════════════════════════════
-    // BOTONES TÁCTILES — posiciones y áreas de toque
+    // BOTONES TÁCTILES
     // ══════════════════════════════════════════════════════════════
-    private int botonIzqX, botonIzqY;
-    private int botonDerX, botonDerY;
-    private int botonDispX, botonDispY;
+    private int  botonIzqX,  botonIzqY;
+    private int  botonDerX,  botonDerY;
+    private int  botonDispX, botonDispY;
     private Rect rectBotonIzq;
     private Rect rectBotonDer;
     private Rect rectBotonDisp;
 
-    // Estado de cada botón (pulsado o no) y qué dedo lo está tocando
+    // ── Botón de pausa ────────────────────────────────────────────
+    // Se dibuja en la esquina superior derecha del HUD
+    private Rect rectBotonPausa;
+    private static final int PAUSA_BTN_SIZE = 120; // tamaño del área táctil en px
+
+    // Estado de cada botón
     private boolean pulsandoIzquierda = false;
     private boolean pulsandoDerecha   = false;
     private boolean pulsadoDisparador = false;
@@ -103,13 +104,19 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     private int pointerDisp = -1;
 
     // ══════════════════════════════════════════════════════════════
-    // ESTADO DEL JUGADOR — vidas, score y abducción
+    // PAUSA
     // ══════════════════════════════════════════════════════════════
-    public int vidas = 3;
-    private int topInset = 0;
-    public int score = 0;
-    public int navesCapturadas = 0;
-    public boolean controlesBloqueados = false;
+    // Flag leído por BucleJuego: si es true el hilo deja de actualizar y dibujar
+    public volatile boolean pausado = false;
+
+    // ══════════════════════════════════════════════════════════════
+    // ESTADO DEL JUGADOR
+    // ══════════════════════════════════════════════════════════════
+    public int     vidas          = 3;
+    private int    topInset       = 0;
+    public  int    score          = 0;
+    public  int    navesCapturadas = 0;
+    public  boolean controlesBloqueados = false;
 
     // ══════════════════════════════════════════════════════════════
     // SONIDOS
@@ -127,18 +134,20 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     private boolean sonidoNivelListo     = false;
 
     // ══════════════════════════════════════════════════════════════
-// MEJORAS DE LA NAVE
-// ══════════════════════════════════════════════════════════════
+    // MEJORAS DE LA NAVE
+    // ══════════════════════════════════════════════════════════════
     public enum NivelNave { DEFAULT, DISPARO_RAPIDO, DOBLE_CANON }
     public NivelNave nivelNave = NivelNave.DEFAULT;
     private Bitmap spriteNaveDefault;
     private Bitmap spriteNaveDisparoRapido;
     private Bitmap spriteNaveDobleCanon;
 
+    // ══════════════════════════════════════════════════════════════
+    // GAME OVER
+    // ══════════════════════════════════════════════════════════════
     private boolean gameOver         = false;
-    private int     contadorGameOver = 0;
-    private static final int FRAMES_GAME_OVER = 180;
-
+    // Área táctil del botón "VOLVER AL MENÚ" de la pantalla de Game Over
+    private Rect    rectBotonGameOver = null;
 
     // ══════════════════════════════════════════════════════════════
     // FLAGS INTERNOS
@@ -154,18 +163,18 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     private enum FaseTransicion { JUGANDO, NAVE_SUBIENDO, ESPERANDO, NAVE_BAJANDO }
     private FaseTransicion faseTransicion = FaseTransicion.JUGANDO;
 
-    private int contadorTransicion = 0;
+    private int   contadorTransicion = 0;
     private static final int FRAMES_ESPERA_ENTRE_NIVELES = 60;
     private float velocidadTransicion;
 
     // ══════════════════════════════════════════════════════════════
     // ESTADÍSTICAS DE LA PARTIDA
     // ══════════════════════════════════════════════════════════════
-    public int disparosRealizados       = 0;
-    public int disparosAcertados        = 0;
-    public int enemigosAmarillosMuertos = 0;
-    public int enemigosRojosMuertos     = 0;
-    public int enemigosVerdesMuertos    = 0;
+    public int  disparosRealizados       = 0;
+    public int  disparosAcertados        = 0;
+    public int  enemigosAmarillosMuertos = 0;
+    public int  enemigosRojosMuertos     = 0;
+    public int  enemigosVerdesMuertos    = 0;
     private boolean mostrandoEstadisticas = false;
 
 
@@ -178,15 +187,14 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         holder = getHolder();
         holder.addCallback(this);
 
-        spriteNave           = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_basica);
-        spriteFlechaIzq      = BitmapFactory.decodeResource(context.getResources(), R.drawable.flecha_izquierda);
-        spriteFlechaDer      = BitmapFactory.decodeResource(context.getResources(), R.drawable.flecha_derecha);
-        spriteBotonDisparar  = BitmapFactory.decodeResource(context.getResources(), R.drawable.boton_disparo);
-        spriteDisparoNave    = BitmapFactory.decodeResource(context.getResources(), R.drawable.disparo);
+        spriteNave              = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_basica);
+        spriteFlechaIzq         = BitmapFactory.decodeResource(context.getResources(), R.drawable.flecha_izquierda);
+        spriteFlechaDer         = BitmapFactory.decodeResource(context.getResources(), R.drawable.flecha_derecha);
+        spriteBotonDisparar     = BitmapFactory.decodeResource(context.getResources(), R.drawable.boton_disparo);
+        spriteDisparoNave       = BitmapFactory.decodeResource(context.getResources(), R.drawable.disparo);
         spriteNaveDefault       = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_basica);
         spriteNaveDisparoRapido = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_disparo_rapido);
         spriteNaveDobleCanon    = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_doble_canion);
-
 
         AudioAttributes attrs = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
@@ -231,28 +239,23 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-            if (resourceId > 0) {
-                topInset = getResources().getDimensionPixelSize(resourceId);
-            } else {
-                topInset = (int)(25 * getResources().getDisplayMetrics().density);
-            }
+            topInset = (resourceId > 0)
+                    ? getResources().getDimensionPixelSize(resourceId)
+                    : (int)(25 * getResources().getDisplayMetrics().density);
         } else {
             topInset = (int)(25 * getResources().getDisplayMetrics().density);
         }
         topInset += (int)(8 * getResources().getDisplayMetrics().density);
 
-        anchoNave = pantallaAncho / 10;
-        altoNave  = (int)(spriteNave.getHeight() * (float) anchoNave / spriteNave.getWidth());
+        anchoNave  = pantallaAncho / 10;
+        altoNave   = (int)(spriteNave.getHeight() * (float) anchoNave / spriteNave.getWidth());
         spriteNave = Bitmap.createScaledBitmap(spriteNave, anchoNave, altoNave, true);
 
-
-        spriteNaveDefault = Bitmap.createScaledBitmap(spriteNaveDefault, anchoNave, altoNave, true);
+        spriteNaveDefault       = Bitmap.createScaledBitmap(spriteNaveDefault,       anchoNave, altoNave, true);
         spriteNaveDisparoRapido = (spriteNaveDisparoRapido != null)
-                ? Bitmap.createScaledBitmap(spriteNaveDisparoRapido, anchoNave, altoNave, true)
-                : spriteNave;
-        spriteNaveDobleCanon = (spriteNaveDobleCanon != null)
-                ? Bitmap.createScaledBitmap(spriteNaveDobleCanon, anchoNave, altoNave, true)
-                : spriteNave;
+                ? Bitmap.createScaledBitmap(spriteNaveDisparoRapido, anchoNave, altoNave, true) : spriteNave;
+        spriteNaveDobleCanon    = (spriteNaveDobleCanon != null)
+                ? Bitmap.createScaledBitmap(spriteNaveDobleCanon,    anchoNave, altoNave, true) : spriteNave;
 
         anchoBoton = pantallaAncho / 6;
         altoBoton  = (int)(spriteFlechaIzq.getHeight() * ((float) anchoBoton / spriteFlechaIzq.getWidth()));
@@ -260,8 +263,8 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         spriteFlechaDer     = Bitmap.createScaledBitmap(spriteFlechaDer,     anchoBoton, altoBoton, true);
         spriteBotonDisparar = Bitmap.createScaledBitmap(spriteBotonDisparar, anchoBoton, altoBoton, true);
 
-        anchoDisparo = pantallaAncho / 20;
-        altoDisparo  = (int)(spriteDisparoNave.getHeight() * ((float) anchoDisparo / spriteDisparoNave.getWidth()));
+        anchoDisparo      = pantallaAncho / 20;
+        altoDisparo       = (int)(spriteDisparoNave.getHeight() * ((float) anchoDisparo / spriteDisparoNave.getWidth()));
         spriteDisparoNave = Bitmap.createScaledBitmap(spriteDisparoNave, anchoDisparo, altoDisparo, true);
 
         velocidadDisparo = pantallaAlto / 30f;
@@ -277,11 +280,19 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         botonDerX  = anchoBoton + margen + 100;
         botonDerY  = pantallaAlto - altoBoton - margen;
         botonDispX = pantallaAncho - anchoBoton - margen;
-        botonDispY = pantallaAlto - altoBoton - margen;
+        botonDispY = pantallaAlto  - altoBoton - margen;
 
         rectBotonIzq  = new Rect(botonIzqX,  botonIzqY,  botonIzqX  + anchoBoton, botonIzqY  + altoBoton);
         rectBotonDer  = new Rect(botonDerX,  botonDerY,  botonDerX  + anchoBoton, botonDerY  + altoBoton);
         rectBotonDisp = new Rect(botonDispX, botonDispY, botonDispX + anchoBoton, botonDispY + altoBoton);
+
+        // Botón de pausa: esquina superior derecha, debajo del HUD
+        int pausaR = topInset + (int)(50 * getResources().getDisplayMetrics().density);
+        rectBotonPausa = new Rect(
+                pantallaAncho - PAUSA_BTN_SIZE - 20,
+                pausaR - PAUSA_BTN_SIZE / 2,
+                pantallaAncho - 20,
+                pausaR + PAUSA_BTN_SIZE / 2);
 
         gestorEnemigos = new GestorEnemigos(this);
         spritesListos  = true;
@@ -302,6 +313,25 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         int x         = (int) event.getX(indice);
         int y         = (int) event.getY(indice);
 
+        // ── Botón de pausa: solo reacciona en ACTION_DOWN ─────────────────────
+        // Funciona siempre, incluso durante el juego pausado, para poder reanudar
+        if (accion == MotionEvent.ACTION_DOWN || accion == MotionEvent.ACTION_POINTER_DOWN) {
+            if (rectBotonPausa != null && rectBotonPausa.contains(x, y)) {
+                pausado = !pausado; // alterna entre pausar y reanudar
+                return true;
+            }
+
+            // ── Botón "VOLVER AL MENÚ" de la pantalla de Game Over ────────────
+            if (gameOver && rectBotonGameOver != null && rectBotonGameOver.contains(x, y)) {
+                bucle.JuegoEnEjecucion = false;
+                ((Activity) getContext()).finish();
+                return true;
+            }
+        }
+
+        // Si el juego está pausado o en game over no procesamos más entradas
+        if (pausado || gameOver) return true;
+
         switch (accion) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
@@ -318,9 +348,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
                 break;
 
             case MotionEvent.ACTION_CANCEL:
-                pulsandoIzquierda = false;
-                pulsandoDerecha   = false;
-                pulsadoDisparador = false;
+                pulsandoIzquierda = pulsandoDerecha = pulsadoDisparador = false;
                 pointerIzq = pointerDer = pointerDisp = -1;
                 break;
         }
@@ -333,13 +361,10 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     // ══════════════════════════════════════════════════════════════════════════
 
     public void actualizar() {
-        if (gameOver) {
-            contadorGameOver++;
-            if (contadorGameOver >= FRAMES_GAME_OVER) ((Activity) getContext()).finish();
-            return;
-        }
+        // ── Game Over: no actualizamos nada más, esperamos el toque del jugador ──
+        if (gameOver) return;
 
-        // Gestión de transición entre niveles
+        // ── Transición entre niveles ──────────────────────────────────────────
         if (faseTransicion != FaseTransicion.JUGANDO) {
             switch (faseTransicion) {
                 case NAVE_SUBIENDO:
@@ -355,10 +380,14 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
                         nivelActual++;
                         if (nivelActual > MAX_NIVELES) nivelActual = 1;
                         gestorEnemigos.configurarNivel(nivelActual);
-                        naveX              = (anchoPantalla - spriteNave.getWidth()) / 2f;
-                        naveY              = altoPantalla + altoNave;
-                        faseTransicion     = FaseTransicion.NAVE_BAJANDO;
+                        naveX          = (anchoPantalla - spriteNave.getWidth()) / 2f;
+                        naveY          = altoPantalla + altoNave;
+                        faseTransicion = FaseTransicion.NAVE_BAJANDO;
                         contadorTransicion = 0;
+                        // Resetear intro del nivel
+                        enFaseIntro            = true;
+                        introSonidoReproducido = false;
+                        contadorIntro          = 0;
                     }
                     break;
                 case NAVE_BAJANDO:
@@ -375,18 +404,23 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
 
         if (!spritesListos) return;
 
-        // Intro del nivel
+        // ── Intro del nivel: solo en el nivel 1 ──────────────────────────────
         if (enFaseIntro) {
-            if (!introSonidoReproducido && sonidoIntroNivelListo) {
-                soundPool.play(idSonidoIntroNivel, 1f, 1f, 1, 0, 1f);
-                introSonidoReproducido = true;
+            if (nivelActual == 1) {
+                if (!introSonidoReproducido && sonidoIntroNivelListo) {
+                    soundPool.play(idSonidoIntroNivel, 1f, 1f, 1, 0, 1f);
+                    introSonidoReproducido = true;
+                }
+                contadorIntro++;
+                if (contadorIntro >= DURACION_INTRO) enFaseIntro = false;
+                return;
+            } else {
+                // En niveles 2+ saltamos la intro directamente, sin sonido ni letrero
+                enFaseIntro = false;
             }
-            contadorIntro++;
-            if (contadorIntro >= DURACION_INTRO) enFaseIntro = false;
-            return;
         }
 
-        // Controles del jugador (solo si no están bloqueados)
+        // ── Controles del jugador ─────────────────────────────────────────────
         if (!controlesBloqueados) {
 
             // Colisión disparos enemigos con la nave
@@ -412,11 +446,9 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
                 }
             }
 
-            // Mover la nave
             if (pulsandoDerecha)   moverNave(1);
             if (pulsandoIzquierda) moverNave(-1);
 
-            // Disparo con cadencia limitada
             if (pulsadoDisparador) {
                 nuevo_disparo = true;
                 if (frames_para_nuevo_disparo == 0) {
@@ -430,9 +462,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             }
         }
 
-        // ── Comprobar abducción SIEMPRE, incluso si los controles están libres ──
-        // Se ejecuta justo después de mover la nave para detectar en tiempo real
-        // si la nave entró en el área del rayo abductor
+        // ── Comprobar abducción ───────────────────────────────────────────────
         if (gestorEnemigos != null) {
             for (Enemigo e : gestorEnemigos.enemigos) {
                 if (e.tipo == Enemigo.Tipo.VERDE
@@ -440,11 +470,8 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
                         && e.contadorAbduccion < Enemigo.FRAMES_MOSTRAR_RAYO_PUBLIC
                         && !e.capturoNave) {
 
-                    float areaX1 = e.x - 60f;
-                    float areaX2 = e.x + e.ancho + 60f;
-                    float areaY1 = e.y - 60f;
-                    float areaY2 = e.y + e.alto + 60f;
-
+                    float areaX1 = e.x - 60f, areaX2 = e.x + e.ancho + 60f;
+                    float areaY1 = e.y - 60f, areaY2 = e.y + e.alto  + 60f;
                     float naveCX = naveX + spriteNave.getWidth()  / 2f;
                     float naveCY = naveY + spriteNave.getHeight() / 2f;
 
@@ -459,11 +486,10 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             }
         }
 
-        // Lógica de enemigos
+        // ── Lógica de enemigos ────────────────────────────────────────────────
         if (gestorEnemigos != null) {
             gestorEnemigos.actualizar();
 
-            // Colisión disparos del jugador con enemigos normales
             for (int i = lista_disparos.size() - 1; i >= 0; i--) {
                 Disparo d = lista_disparos.get(i);
                 for (Enemigo e : gestorEnemigos.enemigos) {
@@ -471,8 +497,9 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
                         e.recibirDanio();
                         lista_disparos.remove(i);
 
-                        // Si matamos al verde capturador, liberamos la nave
-                        if (e.tipo == Enemigo.Tipo.VERDE && e.estado == Enemigo.Estado.MUERTO && e.esCapturador) {
+                        if (e.tipo == Enemigo.Tipo.VERDE
+                                && e.estado == Enemigo.Estado.MUERTO
+                                && e.esCapturador) {
                             if (navesCapturadas > 0) navesCapturadas--;
                             e.esCapturador = false;
                             if (navesCapturadas == 0) controlesBloqueados = false;
@@ -486,16 +513,20 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             }
         }
 
-        // Mover y limpiar disparos del jugador
+        // ── Mover y limpiar disparos del jugador ──────────────────────────────
         for (int i = lista_disparos.size() - 1; i >= 0; i--) {
             lista_disparos.get(i).actualizarCoordenadas();
             if (lista_disparos.get(i).fueraDePantalla()) lista_disparos.remove(i);
         }
 
-        // Limitar nave dentro de los bordes
         if (naveX < 0) naveX = 0;
         if (naveX + anchoNave > bucle.maxX) naveX = bucle.maxX - anchoNave;
     }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  DISPARO Y MEJORAS
+    // ══════════════════════════════════════════════════════════════════════════
 
     private void crearDisparo() {
         switch (nivelNave) {
@@ -549,9 +580,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    public float getHudY() {
-        return topInset + 50f + 10f;
-    }
+    public float getHudY() { return topInset + 50f + 10f; }
 
     public void moverNave(int direccion) {
         naveX += direccion * velocidad;
@@ -578,8 +607,8 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             return;
         }
 
-        faseTransicion     = FaseTransicion.NAVE_SUBIENDO;
-        contadorTransicion = 0;
+        faseTransicion      = FaseTransicion.NAVE_SUBIENDO;
+        contadorTransicion  = 0;
         velocidadTransicion = altoPantalla / 30f;
     }
 
@@ -593,8 +622,8 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
 
         canvas.drawColor(Color.BLACK);
 
-        // Intro del nivel
-        if (enFaseIntro) {
+        // ── Intro del nivel: letrero solo en nivel 1 ─────────────────────────
+        if (enFaseIntro && nivelActual == 1 && faseTransicion == FaseTransicion.JUGANDO) {
             Paint paintIntro = new Paint();
             paintIntro.setAntiAlias(true);
             paintIntro.setColor(Color.WHITE);
@@ -605,51 +634,19 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             return;
         }
 
+        // ── Game Over ─────────────────────────────────────────────────────────
         if (gameOver) {
-            Paint p = new Paint();
-            p.setAntiAlias(true);
-            p.setTypeface(fuenteMenu);
-            p.setTextAlign(Paint.Align.CENTER);
-            p.setColor(Color.RED);
-            p.setTextSize(anchoPantalla / 8f);
-            canvas.drawText("GAME OVER", anchoPantalla / 2f, altoPantalla * 0.4f, p);
-            p.setColor(Color.WHITE);
-            p.setTextSize(anchoPantalla / 16f);
-            canvas.drawText("SCORE: " + score, anchoPantalla / 2f, altoPantalla * 0.55f, p);
+            dibujarPantallaGameOver(canvas);
             return;
         }
 
-        // Estadísticas finales
+        // ── Estadísticas finales ──────────────────────────────────────────────
         if (mostrandoEstadisticas) {
-            float precision = disparosRealizados > 0
-                    ? (disparosAcertados * 100f / disparosRealizados) : 0f;
-
-            Paint p = new Paint();
-            p.setAntiAlias(true);
-            p.setColor(Color.WHITE);
-            p.setTypeface(fuenteMenu);
-            p.setTextAlign(Paint.Align.CENTER);
-            float cx = anchoPantalla / 2f;
-
-            p.setTextSize(anchoPantalla / 9f);
-            canvas.drawText("PARTIDA COMPLETADA", cx, altoPantalla * 0.12f, p);
-
-            p.setTextSize(anchoPantalla / 14f);
-            float y    = altoPantalla * 0.25f;
-            float lineH = altoPantalla * 0.09f;
-
-            dibujarLineaEnemigo(canvas, p, gestorEnemigos.getSpriteAmarillo(), "x " + enemigosAmarillosMuertos, cx, y); y += lineH;
-            dibujarLineaEnemigo(canvas, p, gestorEnemigos.getSpriteRojo(),     "x " + enemigosRojosMuertos,     cx, y); y += lineH;
-            dibujarLineaEnemigo(canvas, p, gestorEnemigos.getSpriteVerde(),    "x " + enemigosVerdesMuertos,    cx, y); y += lineH * 1.3f;
-
-            canvas.drawText("DISPAROS: "   + disparosRealizados,              cx, y, p); y += lineH;
-            canvas.drawText(String.format("PRECISION: %.1f%%", precision),    cx, y, p); y += lineH;
-            canvas.drawText("VIDAS: "      + vidas,                           cx, y, p); y += lineH;
-            canvas.drawText("SCORE: "      + score,                           cx, y, p);
+            dibujarEstadisticas(canvas);
             return;
         }
 
-        // Letrero entre niveles
+        // ── Letrero entre niveles ─────────────────────────────────────────────
         if (faseTransicion == FaseTransicion.ESPERANDO) {
             Paint paintNivel = new Paint();
             paintNivel.setAntiAlias(true);
@@ -666,21 +663,16 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         myPaint.setStyle(Paint.Style.STROKE);
         myPaint.setColor(Color.WHITE);
 
-        // Nave del jugador
         canvas.drawBitmap(spriteNave, naveX, naveY, null);
-
-        // Disparos del jugador
         for (Disparo d : lista_disparos) d.Dibujar(canvas, myPaint);
-
-        // Enemigos y sus disparos
         if (gestorEnemigos != null) gestorEnemigos.renderizar(canvas, myPaint);
 
-        // Botones de control
+        // Botones de movimiento y disparo
         canvas.drawBitmap(spriteFlechaIzq,     botonIzqX,  botonIzqY,  null);
         canvas.drawBitmap(spriteFlechaDer,     botonDerX,  botonDerY,  null);
         canvas.drawBitmap(spriteBotonDisparar, botonDispX, botonDispY, null);
 
-        // HUD
+        // ── HUD ───────────────────────────────────────────────────────────────
         Paint paintHUD = new Paint();
         paintHUD.setColor(Color.WHITE);
         paintHUD.setTextSize(50);
@@ -688,6 +680,139 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         float hudY = topInset + paintHUD.getTextSize() + 10;
         canvas.drawText("SCORE: " + score, 50, hudY, paintHUD);
         canvas.drawText("VIDAS: " + vidas, anchoPantalla - 300, hudY, paintHUD);
+
+        // ── Botón de pausa ────────────────────────────────────────────────────
+        dibujarBotonPausa(canvas, paintHUD);
+
+        // ── Overlay de pausa ──────────────────────────────────────────────────
+        if (pausado) {
+            dibujarOverlayPausa(canvas);
+        }
+    }
+
+    /** Dibuja el botón de pausa (II o ▶) en el HUD */
+    private void dibujarBotonPausa(Canvas canvas, Paint paintBase) {
+        if (rectBotonPausa == null) return;
+
+        Paint p = new Paint();
+        p.setAntiAlias(true);
+        p.setTypeface(fuenteMenu);
+        p.setTextAlign(Paint.Align.CENTER);
+        p.setTextSize(PAUSA_BTN_SIZE * 0.55f);
+
+        // Fondo semitransparente para que se vea bien sobre el espacio
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.argb(120, 255, 255, 255));
+        canvas.drawRoundRect(
+                rectBotonPausa.left, rectBotonPausa.top,
+                rectBotonPausa.right, rectBotonPausa.bottom,
+                20, 20, p);
+
+        // Icono: "II" cuando juega, "▶" cuando está pausado
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.BLACK);
+        float cx = rectBotonPausa.centerX();
+        float cy = rectBotonPausa.centerY() - (p.ascent() + p.descent()) / 2f;
+        canvas.drawText(pausado ? "▶" : "II", cx, cy, p);
+    }
+
+    /** Overlay semitransparente con texto PAUSA centrado en pantalla */
+    private void dibujarOverlayPausa(Canvas canvas) {
+        Paint p = new Paint();
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.argb(160, 0, 0, 0));
+        canvas.drawRect(0, 0, anchoPantalla, altoPantalla, p);
+
+        p.setAntiAlias(true);
+        p.setTypeface(fuenteMenu);
+        p.setTextAlign(Paint.Align.CENTER);
+        p.setColor(Color.WHITE);
+        p.setTextSize(anchoPantalla / 7f);
+        canvas.drawText("PAUSA", anchoPantalla / 2f, altoPantalla * 0.45f, p);
+
+        p.setTextSize(anchoPantalla / 16f);
+        p.setColor(Color.LTGRAY);
+        canvas.drawText("Toca  II  para continuar", anchoPantalla / 2f, altoPantalla * 0.57f, p);
+    }
+
+    /**
+     * Pantalla de Game Over con score y botón táctil "VOLVER AL MENÚ".
+     * El Rect del botón se calcula aquí para que onTouchEvent pueda detectar el toque.
+     */
+    private void dibujarPantallaGameOver(Canvas canvas) {
+        Paint p = new Paint();
+        p.setAntiAlias(true);
+        p.setTypeface(fuenteMenu);
+        p.setTextAlign(Paint.Align.CENTER);
+
+        // Título rojo
+        p.setColor(Color.RED);
+        p.setTextSize(anchoPantalla / 7f);
+        canvas.drawText("GAME OVER", anchoPantalla / 2f, altoPantalla * 0.35f, p);
+
+        // Score
+        p.setColor(Color.WHITE);
+        p.setTextSize(anchoPantalla / 14f);
+        canvas.drawText("SCORE: " + score, anchoPantalla / 2f, altoPantalla * 0.50f, p);
+
+        // ── Botón "VOLVER AL MENÚ" ─────────────────────────────────────────────
+        float btnW  = anchoPantalla * 0.55f;
+        float btnH  = altoPantalla  * 0.08f;
+        float btnX  = (anchoPantalla - btnW) / 2f;
+        float btnY  = altoPantalla  * 0.62f;
+
+        // Guardamos el Rect para que onTouchEvent lo detecte
+        rectBotonGameOver = new Rect(
+                (int) btnX, (int) btnY,
+                (int)(btnX + btnW), (int)(btnY + btnH));
+
+        // Fondo del botón
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.argb(220, 200, 0, 0));
+        canvas.drawRoundRect(btnX, btnY, btnX + btnW, btnY + btnH, 30, 30, p);
+
+        // Borde blanco
+        p.setStyle(Paint.Style.STROKE);
+        p.setColor(Color.WHITE);
+        p.setStrokeWidth(4);
+        canvas.drawRoundRect(btnX, btnY, btnX + btnW, btnY + btnH, 30, 30, p);
+
+        // Texto del botón
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.WHITE);
+        p.setTextSize(anchoPantalla / 18f);
+        canvas.drawText("VOLVER AL MENÚ",
+                anchoPantalla / 2f,
+                btnY + btnH / 2f - (p.ascent() + p.descent()) / 2f,
+                p);
+    }
+
+    private void dibujarEstadisticas(Canvas canvas) {
+        float precision = disparosRealizados > 0
+                ? (disparosAcertados * 100f / disparosRealizados) : 0f;
+
+        Paint p = new Paint();
+        p.setAntiAlias(true);
+        p.setColor(Color.WHITE);
+        p.setTypeface(fuenteMenu);
+        p.setTextAlign(Paint.Align.CENTER);
+        float cx = anchoPantalla / 2f;
+
+        p.setTextSize(anchoPantalla / 9f);
+        canvas.drawText("PARTIDA COMPLETADA", cx, altoPantalla * 0.12f, p);
+
+        p.setTextSize(anchoPantalla / 14f);
+        float y     = altoPantalla * 0.25f;
+        float lineH = altoPantalla * 0.09f;
+
+        dibujarLineaEnemigo(canvas, p, gestorEnemigos.getSpriteAmarillo(), "x " + enemigosAmarillosMuertos, cx, y); y += lineH;
+        dibujarLineaEnemigo(canvas, p, gestorEnemigos.getSpriteRojo(),     "x " + enemigosRojosMuertos,     cx, y); y += lineH;
+        dibujarLineaEnemigo(canvas, p, gestorEnemigos.getSpriteVerde(),    "x " + enemigosVerdesMuertos,    cx, y); y += lineH * 1.3f;
+
+        canvas.drawText("DISPAROS: "   + disparosRealizados,           cx, y, p); y += lineH;
+        canvas.drawText(String.format("PRECISION: %.1f%%", precision), cx, y, p); y += lineH;
+        canvas.drawText("VIDAS: "      + vidas,                        cx, y, p); y += lineH;
+        canvas.drawText("SCORE: "      + score,                        cx, y, p);
     }
 
 
@@ -695,21 +820,38 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     //  ESTADO DEL JUGADOR
     // ══════════════════════════════════════════════════════════════════════════
 
-    // Daño normal (disparos enemigos, melee jefe) — no bloquea controles
+    /** Daño normal (disparos enemigos, melee jefe) — no bloquea controles */
     public void recibirDanio() {
         vidas--;
         degradarNave();
         if (navesCapturadas == 0) controlesBloqueados = false;
-        if (vidas <= 0) Log.d("pruebas", "GAME OVER");
+        if (vidas <= 0) activarGameOver();
     }
 
-    // Abducción del verde — bloquea controles y quita vida
+    /** Abducción del verde — bloquea controles y quita vida */
     public void serAbducido() {
         vidas--;
         degradarNave();
         if (navesCapturadas < 2) navesCapturadas++;
         controlesBloqueados = true;
-        if (vidas <= 0) Log.d("pruebas", "GAME OVER");
+        if (vidas <= 0) activarGameOver();
+    }
+
+    /**
+     * Activa el estado de Game Over:
+     * - Detiene los controles
+     * - Cancela cualquier pausa activa (si no, el overlay de pausa taparía el Game Over)
+     * - Limpia los disparos activos para que la pantalla quede despejada
+     */
+    private void activarGameOver() {
+        gameOver             = true;
+        pausado              = false;
+        controlesBloqueados  = true;
+        pulsandoIzquierda    = false;
+        pulsandoDerecha      = false;
+        pulsadoDisparador    = false;
+        lista_disparos.clear();
+        if (gestorEnemigos != null) gestorEnemigos.disparosEnemigos.clear();
     }
 
 
@@ -746,17 +888,16 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         }
         boolean retry = true;
         while (retry) {
-            try {
-                bucle.join();
-                retry = false;
-            } catch (InterruptedException e) {}
+            try { bucle.join(); retry = false; }
+            catch (InterruptedException e) {}
         }
     }
 
-    private void dibujarLineaEnemigo(Canvas canvas, Paint paint, Bitmap sprite, String texto, float cx, float y) {
+    private void dibujarLineaEnemigo(Canvas canvas, Paint paint, Bitmap sprite,
+                                     String texto, float cx, float y) {
         if (sprite != null) {
-            float spriteX = cx - sprite.getWidth() / 2f - 80;
-            float spriteY = y - sprite.getHeight() / 2f - 20;
+            float spriteX = cx - sprite.getWidth()  / 2f - 80;
+            float spriteY = y  - sprite.getHeight() / 2f - 20;
             canvas.drawBitmap(sprite, spriteX, spriteY, null);
         }
         paint.setTextAlign(Paint.Align.LEFT);
