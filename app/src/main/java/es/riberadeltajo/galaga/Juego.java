@@ -60,8 +60,11 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     Bitmap spriteFlechaIzq;
     Bitmap spriteFlechaDer;
     Bitmap spriteBotonDisparar;
+    Bitmap spriteBotonPausa;
+    Bitmap spriteBotonPlay;
 
     private int anchoNave, altoNave;
+    private int pausaSize;
     private int anchoBoton, altoBoton;
     private int anchoDisparo, altoDisparo;
 
@@ -195,6 +198,8 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         spriteNaveDefault       = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_basica);
         spriteNaveDisparoRapido = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_disparo_rapido);
         spriteNaveDobleCanon    = BitmapFactory.decodeResource(context.getResources(), R.drawable.nave_doble_canion);
+        spriteBotonPausa        = BitmapFactory.decodeResource(context.getResources(), R.drawable.pause_button);
+        spriteBotonPlay         = BitmapFactory.decodeResource(context.getResources(), R.drawable.play_button);
 
         AudioAttributes attrs = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
@@ -286,13 +291,15 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         rectBotonDer  = new Rect(botonDerX,  botonDerY,  botonDerX  + anchoBoton, botonDerY  + altoBoton);
         rectBotonDisp = new Rect(botonDispX, botonDispY, botonDispX + anchoBoton, botonDispY + altoBoton);
 
-        // Botón de pausa: esquina superior derecha, debajo del HUD
-        int pausaR = topInset + (int)(50 * getResources().getDisplayMetrics().density);
-        rectBotonPausa = new Rect(
-                pantallaAncho - PAUSA_BTN_SIZE - 20,
-                pausaR - PAUSA_BTN_SIZE / 2,
-                pantallaAncho - 20,
-                pausaR + PAUSA_BTN_SIZE / 2);
+        // Botón de pausa: centrado horizontalmente, misma altura que el HUD (score y vidas)
+        pausaSize = pantallaAncho / 10;
+        if (spriteBotonPausa != null)
+            spriteBotonPausa = Bitmap.createScaledBitmap(spriteBotonPausa, pausaSize, pausaSize, true);
+        if (spriteBotonPlay != null)
+            spriteBotonPlay  = Bitmap.createScaledBitmap(spriteBotonPlay,  pausaSize, pausaSize, true);
+        int pausaLeft = (pantallaAncho - pausaSize) / 2;
+        int pausaTop  = topInset + 10;
+        rectBotonPausa = new Rect(pausaLeft, pausaTop, pausaLeft + pausaSize, pausaTop + pausaSize);
 
         gestorEnemigos = new GestorEnemigos(this);
         spritesListos  = true;
@@ -313,18 +320,12 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         int x         = (int) event.getX(indice);
         int y         = (int) event.getY(indice);
 
-        // ── Botón de pausa: solo reacciona en ACTION_DOWN ─────────────────────
-        // Funciona siempre, incluso durante el juego pausado, para poder reanudar
         if (accion == MotionEvent.ACTION_DOWN || accion == MotionEvent.ACTION_POINTER_DOWN) {
-            if (rectBotonPausa != null && rectBotonPausa.contains(x, y)) {
-                pausado = !pausado; // alterna entre pausar y reanudar
-                return true;
-            }
-
-            // ── Botón "VOLVER AL MENÚ" de la pantalla de Game Over ────────────
-            if (gameOver && rectBotonGameOver != null && rectBotonGameOver.contains(x, y)) {
-                bucle.JuegoEnEjecucion = false;
-                ((Activity) getContext()).finish();
+            // ── Botón de pausa: congela el bucle y lanza PauseActivity ────────
+            if (!gameOver && rectBotonPausa != null && rectBotonPausa.contains(x, y)) {
+                pausado = true;
+                ((Activity) getContext()).startActivityForResult(
+                        new Intent(getContext(), PauseActivity.class), 1);
                 return true;
             }
         }
@@ -361,7 +362,6 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     // ══════════════════════════════════════════════════════════════════════════
 
     public void actualizar() {
-        // ── Game Over: no actualizamos nada más, esperamos el toque del jugador ──
         if (gameOver) return;
 
         // ── Transición entre niveles ──────────────────────────────────────────
@@ -634,11 +634,7 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             return;
         }
 
-        // ── Game Over ─────────────────────────────────────────────────────────
-        if (gameOver) {
-            dibujarPantallaGameOver(canvas);
-            return;
-        }
+
 
         // ── Estadísticas finales ──────────────────────────────────────────────
         if (mostrandoEstadisticas) {
@@ -683,56 +679,13 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
 
         // ── Botón de pausa ────────────────────────────────────────────────────
         dibujarBotonPausa(canvas, paintHUD);
-
-        // ── Overlay de pausa ──────────────────────────────────────────────────
-        if (pausado) {
-            dibujarOverlayPausa(canvas);
-        }
     }
 
-    /** Dibuja el botón de pausa (II o ▶) en el HUD */
+    /** Dibuja el botón de pausa usando los PNG pause_button / play_button */
     private void dibujarBotonPausa(Canvas canvas, Paint paintBase) {
         if (rectBotonPausa == null) return;
-
-        Paint p = new Paint();
-        p.setAntiAlias(true);
-        p.setTypeface(fuenteMenu);
-        p.setTextAlign(Paint.Align.CENTER);
-        p.setTextSize(PAUSA_BTN_SIZE * 0.55f);
-
-        // Fondo semitransparente para que se vea bien sobre el espacio
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(120, 255, 255, 255));
-        canvas.drawRoundRect(
-                rectBotonPausa.left, rectBotonPausa.top,
-                rectBotonPausa.right, rectBotonPausa.bottom,
-                20, 20, p);
-
-        // Icono: "II" cuando juega, "▶" cuando está pausado
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.BLACK);
-        float cx = rectBotonPausa.centerX();
-        float cy = rectBotonPausa.centerY() - (p.ascent() + p.descent()) / 2f;
-        canvas.drawText(pausado ? "▶" : "II", cx, cy, p);
-    }
-
-    /** Overlay semitransparente con texto PAUSA centrado en pantalla */
-    private void dibujarOverlayPausa(Canvas canvas) {
-        Paint p = new Paint();
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(160, 0, 0, 0));
-        canvas.drawRect(0, 0, anchoPantalla, altoPantalla, p);
-
-        p.setAntiAlias(true);
-        p.setTypeface(fuenteMenu);
-        p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.WHITE);
-        p.setTextSize(anchoPantalla / 7f);
-        canvas.drawText("PAUSA", anchoPantalla / 2f, altoPantalla * 0.45f, p);
-
-        p.setTextSize(anchoPantalla / 16f);
-        p.setColor(Color.LTGRAY);
-        canvas.drawText("Toca  II  para continuar", anchoPantalla / 2f, altoPantalla * 0.57f, p);
+        Bitmap sprite = pausado ? spriteBotonPlay : spriteBotonPausa;
+        if (sprite != null) canvas.drawBitmap(sprite, rectBotonPausa.left, rectBotonPausa.top, null);
     }
 
     /**
@@ -844,14 +797,22 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
      * - Limpia los disparos activos para que la pantalla quede despejada
      */
     private void activarGameOver() {
-        gameOver             = true;
-        pausado              = false;
-        controlesBloqueados  = true;
-        pulsandoIzquierda    = false;
-        pulsandoDerecha      = false;
-        pulsadoDisparador    = false;
+        pausado             = false;
+        controlesBloqueados = true;
+        pulsandoIzquierda   = false;
+        pulsandoDerecha     = false;
+        pulsadoDisparador   = false;
         lista_disparos.clear();
         if (gestorEnemigos != null) gestorEnemigos.disparosEnemigos.clear();
+        bucle.JuegoEnEjecucion = false;
+
+        // Lanzamos GameOverActivity pasando el score
+        Intent intent = new Intent(getContext(), GameOverActivity.class);
+        intent.putExtra("score", score);
+        ((Activity) getContext()).runOnUiThread(() -> {
+            ((Activity) getContext()).startActivity(intent);
+            ((Activity) getContext()).finish();
+        });
     }
 
 

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#000000"
+    android:padding="32dp">
+
+    <!-- Título GAME OVER -->
+
+    <!-- Score -->
+    <TextView
+        android:id="@+id/txtGameOver"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:fontFamily="@font/fuente_menu"
+        android:letterSpacing="0.15"
+        android:textAlignment="center"
+        android:text="GAME OVER"
+        android:textColor="#FF0000"
+        android:textSize="48sp" />
+
+    <TextView
+        android:id="@+id/txtScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SCORE: 0"
+        android:textColor="#FFFFFF"
+        android:textSize="28sp"
+        android:fontFamily="@font/fuente_menu"
+        android:layout_marginBottom="64dp"/>
+
+    <!-- Botón Reintentar -->
+    <Button
+        android:id="@+id/btnReintentar"
+        android:layout_width="260dp"
+        android:layout_height="60dp"
+        android:text="REINTENTAR"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:fontFamily="@font/fuente_menu"
+        android:backgroundTint="#CC0000"
+        android:layout_marginBottom="20dp"/>
+
+    <!-- Botón Volver al Menú -->
+    <Button
+        android:id="@+id/btnMenu"
+        android:layout_width="260dp"
+        android:layout_height="60dp"
+        android:text="MENÚ PRINCIPAL"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:fontFamily="@font/fuente_menu"
+        android:backgroundTint="#333333"/>
+
+</LinearLayout>

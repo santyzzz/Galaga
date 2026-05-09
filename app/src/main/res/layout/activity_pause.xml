@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#A0000000"
+    android:padding="32dp">
+
+    <!-- Título PAUSA -->
+    <TextView
+        android:id="@+id/txtPausa"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PAUSA"
+        android:textColor="#FFFFFF"
+        android:textSize="52sp"
+        android:fontFamily="@font/fuente_menu"
+        android:letterSpacing="0.2"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Subtítulo -->
+    <TextView
+        android:id="@+id/txtSubtitulo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Juego en pausa"
+        android:textColor="#AAAAAA"
+        android:textSize="16sp"
+        android:fontFamily="@font/fuente_menu"
+        android:layout_marginBottom="64dp"/>
+
+    <!-- Botón Reanudar -->
+    <Button
+        android:id="@+id/btnReanudar"
+        android:layout_width="260dp"
+        android:layout_height="60dp"
+        android:text="REANUDAR"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:fontFamily="@font/fuente_menu"
+        android:backgroundTint="#1A6600"
+        android:layout_marginBottom="20dp"/>
+
+    <!-- Botón Volver al Menú -->
+    <Button
+        android:id="@+id/btnMenu"
+        android:layout_width="260dp"
+        android:layout_height="60dp"
+        android:text="MENÚ PRINCIPAL"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:fontFamily="@font/fuente_menu"
+        android:backgroundTint="#333333"/>
+
+</LinearLayout>

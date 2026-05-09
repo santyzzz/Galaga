@@ -36,6 +36,11 @@
         <activity android:name=".ResultadosActivity"
             android:screenOrientation="portrait"/>
 
+        <activity android:name=".GameOverActivity" />
+        <activity
+            android:name=".PauseActivity"
+            android:theme="@style/Theme.Translucent" />
+
     </application>
 
 </manifest>
