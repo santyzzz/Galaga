@@ -547,12 +547,15 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
             case DEFAULT:
                 nivelNave  = NivelNave.DISPARO_RAPIDO;
                 spriteNave = spriteNaveDisparoRapido;
+                vidas++;
                 break;
             case DISPARO_RAPIDO:
                 nivelNave  = NivelNave.DOBLE_CANON;
                 spriteNave = spriteNaveDobleCanon;
+                vidas++;
                 break;
             case DOBLE_CANON:
+                // Ya en nivel máximo, no se puede mejorar más
                 break;
         }
     }

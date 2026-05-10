@@ -224,25 +224,73 @@ public class Enemigo {
     public void dibujar(Canvas canvas, Paint paint) {
         if (estado == Estado.ESPERANDO || estado == Estado.MUERTO) return;
 
+        if (estado == Estado.ABDUCIENDO && contadorAbduccion < FRAMES_MOSTRAR_RAYO) {
+
+            // El verde se dibuja en su posición real (x,y)
+            // La nave está en juego.naveX, juego.naveY — siempre más abajo
+            // El rayo va desde la base del verde hasta la parte superior de la nave
+
+            float offsetSubirVerde = alto * 1.5f;
+            float cx       = x + ancho / 2f;
+            float rayoTopY = y + alto - offsetSubirVerde;        // base del verde desplazado
+            float rayoBotY = juego.naveY + juego.spriteNave.getHeight(); // pie de la nave
+            float mitadTop = ancho * 0.5f;
+            float mitadBot = juego.spriteNave.getWidth() * 1.2f;
+
+            // Parpadeo de opacidad
+            contadorFrameRayo++;
+            if (contadorFrameRayo >= 4) {
+                contadorFrameRayo = 0;
+                frameRayo = (frameRayo + 1) % 2;
+            }
+            int alpha = (frameRayo == 0) ? 200 : 140;
+
+            // ── 1. Rayo (detrás de todo) ──────────────────────────────────────
+            android.graphics.Path path = new android.graphics.Path();
+            path.moveTo(cx - mitadTop, rayoTopY);
+            path.lineTo(cx + mitadTop, rayoTopY);
+            path.lineTo(cx + mitadBot, rayoBotY);
+            path.lineTo(cx - mitadBot, rayoBotY);
+            path.close();
+
+            android.graphics.Paint pRayo = new android.graphics.Paint();
+            pRayo.setAntiAlias(true);
+            android.graphics.LinearGradient gradient = new android.graphics.LinearGradient(
+                    cx, rayoTopY, cx, rayoBotY,
+                    android.graphics.Color.argb(alpha, 180, 230, 255),
+                    android.graphics.Color.argb(alpha, 0,  110, 255),
+                    android.graphics.Shader.TileMode.CLAMP);
+            pRayo.setShader(gradient);
+            pRayo.setStyle(android.graphics.Paint.Style.FILL);
+            canvas.drawPath(path, pRayo);
+
+            pRayo.setShader(null);
+            pRayo.setColor(android.graphics.Color.argb(230, 140, 220, 255));
+            pRayo.setStyle(android.graphics.Paint.Style.STROKE);
+            pRayo.setStrokeWidth(4f);
+            canvas.drawPath(path, pRayo);
+
+            // ── 2. Nave dentro del rayo ───────────────────────────────────────
+            if (esCapturador && juego.spriteNave != null) {
+                canvas.drawBitmap(juego.spriteNave, juego.naveX, juego.naveY, paint);
+            }
+
+            // ── 3. Verde encima del rayo, desplazado visualmente hacia arriba ──
+            Bitmap[] sprites = (vida == 1 && framesDanado != null) ? framesDanado : frames;
+            if (sprites != null && frameActual < sprites.length && sprites[frameActual] != null) {
+                canvas.drawBitmap(sprites[frameActual], x, y - offsetSubirVerde, paint);
+            }
+            return;
+        }
+
+        // ── Dibujo normal fuera de la fase de abducción ───────────────────────
         Bitmap[] sprites = (tipo == Tipo.VERDE && vida == 1 && framesDanado != null)
                 ? framesDanado : frames;
         if (sprites != null && frameActual < sprites.length && sprites[frameActual] != null) {
             canvas.drawBitmap(sprites[frameActual], x, y, paint);
         }
 
-        if (estado == Estado.ABDUCIENDO && contadorAbduccion < FRAMES_MOSTRAR_RAYO && framesRayo != null) {
-            int   rayoW = framesRayo[0].getWidth();
-            float rayoX = x + ancho / 2f - rayoW / 2f;
-            float rayoY = y + alto;
-            canvas.drawBitmap(framesRayo[frameRayo], rayoX, rayoY, paint);
-
-            contadorFrameRayo++;
-            if (contadorFrameRayo >= 4) {
-                contadorFrameRayo = 0;
-                frameRayo = (frameRayo + 1) % framesRayo.length;
-            }
-        }
-
+        // Nave capturada subiendo junto al verde (fase 2 + formación)
         boolean debesDibujarNave = esCapturador &&
                 ((estado == Estado.ABDUCIENDO && contadorAbduccion >= FRAMES_MOSTRAR_RAYO)
                         || estado == Estado.EN_FORMACION);
