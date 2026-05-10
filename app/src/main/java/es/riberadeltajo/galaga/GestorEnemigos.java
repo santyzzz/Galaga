@@ -293,11 +293,16 @@ public class GestorEnemigos {
         if (minX <= MARGEN)                        formacionDireccion =  1;
 
         for (Enemigo e : enemigos) {
-            if (e.estado != Enemigo.Estado.MUERTO && e.estado != Enemigo.Estado.ATACANDO) {
-                e.targetX += formacionVelocidad * formacionDireccion;
-                if (e.estado == Enemigo.Estado.EN_FORMACION) {
-                    e.x += formacionVelocidad * formacionDireccion;
-                }
+            if (e.estado == Enemigo.Estado.MUERTO) continue;
+
+            // El targetX se actualiza SIEMPRE, incluso si el enemigo está atacando.
+            // Así cuando vuelva a la formación irá exactamente al hueco que dejó,
+            // aunque la formación se haya desplazado mientras tanto.
+            e.targetX += formacionVelocidad * formacionDireccion;
+
+            // Solo movemos la posición real si está en formación
+            if (e.estado == Enemigo.Estado.EN_FORMACION) {
+                e.x += formacionVelocidad * formacionDireccion;
             }
         }
     }

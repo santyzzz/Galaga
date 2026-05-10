@@ -16,27 +16,36 @@ public class MainActivity extends AppCompatActivity {
         juegoView = new Juego(this);
         setContentView(juegoView);
 
+        // Botón atrás = pausar y abrir PauseActivity
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                // Botón atrás = pausar y abrir PauseActivity
                 if (juegoView != null) {
                     juegoView.pausado = true;
-                    startActivityForResult(new Intent(MainActivity.this, PauseActivity.class), 1);
+                    startActivityForResult(
+                            new Intent(MainActivity.this, PauseActivity.class), 1);
                 }
             }
         });
     }
 
-    /**
-     * Se llama cuando PauseActivity cierra (el jugador pulsó Reanudar).
-     * Simplemente quitamos el flag de pausa para que el bucle retome.
-     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1 && juegoView != null) {
-            juegoView.pausado = false;
+        if (requestCode == 1) {
+            if (resultCode == PauseActivity.RESULT_MENU) {
+                // El jugador eligió volver al menú: paramos el bucle aquí
+                if (juegoView != null && juegoView.bucle != null) {
+                    juegoView.bucle.JuegoEnEjecucion = false;
+                }
+                Intent i = new Intent(this, MenuActivity.class);
+                i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(i);
+                finish();
+            } else {
+                // Reanudar: quitamos la pausa y el bucle retoma solo
+                if (juegoView != null) juegoView.pausado = false;
+            }
         }
     }
 }
