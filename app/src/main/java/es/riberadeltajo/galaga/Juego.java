@@ -158,6 +158,18 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     private boolean spritesListos = false;
 
     // ══════════════════════════════════════════════════════════════
+    // FONDO ESTRELLADO
+    // ══════════════════════════════════════════════════════════════
+    private static final int NUM_ESTRELLAS = 120;
+    private float[] estrellaX    = new float[NUM_ESTRELLAS];
+    private float[] estrellaY    = new float[NUM_ESTRELLAS];
+    private float[] estrellaVel  = new float[NUM_ESTRELLAS]; // velocidad de caída
+    private int[]   estrellaBrillo = new int[NUM_ESTRELLAS]; // brillo actual
+    private int[]   estrellaBrilloDir = new int[NUM_ESTRELLAS]; // dirección parpadeo
+    private int[]   estrellaSize = new int[NUM_ESTRELLAS];   // tamaño (1 o 2px)
+    private boolean estrellasInicializadas = false;
+
+    // ══════════════════════════════════════════════════════════════
     // NIVELES Y TRANSICIÓN
     // ══════════════════════════════════════════════════════════════
     public int nivelActual = 1;
@@ -301,6 +313,24 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         int pausaTop  = topInset + 10;
         rectBotonPausa = new Rect(pausaLeft, pausaTop, pausaLeft + pausaSize, pausaTop + pausaSize);
 
+        // Inicializar posiciones aleatorias de las estrellas
+        if (!estrellasInicializadas) {
+            java.util.Random rnd = new java.util.Random();
+            for (int i = 0; i < NUM_ESTRELLAS; i++) {
+                estrellaX[i]       = rnd.nextInt(pantallaAncho);
+                estrellaY[i]       = rnd.nextInt(pantallaAlto);
+                // 3 capas de profundidad: lentas (fondo), medias, rápidas (primer plano)
+                float capa = rnd.nextFloat();
+                if      (capa < 0.5f) estrellaVel[i] = 0.4f + rnd.nextFloat() * 0.3f; // fondo
+                else if (capa < 0.8f) estrellaVel[i] = 0.9f + rnd.nextFloat() * 0.5f; // medio
+                else                  estrellaVel[i] = 1.8f + rnd.nextFloat() * 0.8f; // frente
+                estrellaBrillo[i]    = 100 + rnd.nextInt(155);
+                estrellaBrilloDir[i] = (rnd.nextBoolean()) ? 3 : -3;
+                estrellaSize[i]      = (estrellaVel[i] > 1.5f) ? 2 : 1;
+            }
+            estrellasInicializadas = true;
+        }
+
         gestorEnemigos = new GestorEnemigos(this);
         spritesListos  = true;
     }
@@ -363,6 +393,9 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
 
     public void actualizar() {
         if (gameOver) return;
+
+        // Actualizar estrellas siempre, incluso durante transiciones e intro
+        if (estrellasInicializadas) actualizarEstrellas();
 
         // ── Transición entre niveles ──────────────────────────────────────────
         if (faseTransicion != FaseTransicion.JUGANDO) {
@@ -528,6 +561,293 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
     //  DISPARO Y MEJORAS
     // ══════════════════════════════════════════════════════════════════════════
 
+    private void actualizarEstrellas() {
+        for (int i = 0; i < NUM_ESTRELLAS; i++) {
+            // Mover hacia abajo
+            estrellaY[i] += estrellaVel[i];
+            if (estrellaY[i] > altoPantalla) {
+                estrellaY[i] = 0;
+                estrellaX[i] = (float)(Math.random() * anchoPantalla);
+            }
+            // Parpadeo: el brillo oscila entre 80 y 255
+            estrellaBrillo[i] += estrellaBrilloDir[i];
+            if (estrellaBrillo[i] >= 255) { estrellaBrillo[i] = 255; estrellaBrilloDir[i] = -3; }
+            if (estrellaBrillo[i] <= 80)  { estrellaBrillo[i] = 80;  estrellaBrilloDir[i] =  3; }
+        }
+    }
+
+    private void dibujarEstrellas(Canvas canvas) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        for (int i = 0; i < NUM_ESTRELLAS; i++) {
+            int b = estrellaBrillo[i];
+            p.setColor(android.graphics.Color.rgb(b, b, b));
+            int s = estrellaSize[i];
+            canvas.drawRect(estrellaX[i], estrellaY[i],
+                    estrellaX[i] + s, estrellaY[i] + s, p);
+        }
+    }
+
+    // ── Fondo por nivel ──────────────────────────────────────────────────────────
+    private void dibujarFondoNivel(Canvas canvas) {
+        switch (nivelActual) {
+            case 1: dibujarFondoNivel1(canvas); break;
+            case 2: dibujarFondoNivel2(canvas); break;
+            case 3: dibujarFondoNivel3(canvas); break;
+            case 4: dibujarFondoNivel4(canvas); break;
+            case 5: dibujarFondoNivel5(canvas); break;
+            case 6: dibujarFondoNivel6(canvas); break;
+        }
+    }
+
+    /** Nivel 1 — Planeta azul con anillo (Saturno) en esquina superior izquierda */
+    private void dibujarFondoNivel1(Canvas canvas) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setAntiAlias(true);
+        float cx = anchoPantalla * 0.18f, cy = altoPantalla * 0.18f;
+        float r  = anchoPantalla * 0.13f;
+
+        // Cuerpo azul
+        p.setShader(new android.graphics.RadialGradient(
+                cx - r * 0.3f, cy - r * 0.3f, r,
+                new int[]{ android.graphics.Color.rgb(120,160,220),
+                        android.graphics.Color.rgb( 40, 60,140),
+                        android.graphics.Color.rgb( 15, 15, 55) },
+                new float[]{ 0f, 0.55f, 1f },
+                android.graphics.Shader.TileMode.CLAMP));
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawCircle(cx, cy, r, p);
+
+        // Anillo inclinado
+        p.setShader(null);
+        p.setColor(android.graphics.Color.argb(90, 160, 190, 255));
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(r * 0.18f);
+        canvas.save();
+        canvas.rotate(-18f, cx, cy);
+        canvas.drawOval(new android.graphics.RectF(cx-r*1.55f, cy-r*0.28f, cx+r*1.55f, cy+r*0.28f), p);
+        canvas.restore();
+
+        // Borde
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(3f);
+        p.setColor(android.graphics.Color.argb(100, 10, 10, 40));
+        canvas.drawCircle(cx, cy, r, p);
+    }
+
+    /** Nivel 2 — Luna gris en esquina superior derecha con cráteres */
+    private void dibujarFondoNivel2(Canvas canvas) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setAntiAlias(true);
+        float cx = anchoPantalla * 0.82f, cy = altoPantalla * 0.14f;
+        float r  = anchoPantalla * 0.11f;
+
+        // Cuerpo gris
+        p.setShader(new android.graphics.RadialGradient(
+                cx - r * 0.3f, cy - r * 0.3f, r,
+                new int[]{ android.graphics.Color.rgb(210,210,210),
+                        android.graphics.Color.rgb(130,130,130),
+                        android.graphics.Color.rgb( 60, 60, 60) },
+                new float[]{ 0f, 0.6f, 1f },
+                android.graphics.Shader.TileMode.CLAMP));
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawCircle(cx, cy, r, p);
+
+        // Cráteres
+        p.setShader(null);
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(2f);
+        p.setColor(android.graphics.Color.argb(80, 40, 40, 40));
+        canvas.drawCircle(cx - r*0.3f, cy + r*0.2f, r*0.2f, p);
+        canvas.drawCircle(cx + r*0.35f, cy - r*0.25f, r*0.13f, p);
+        canvas.drawCircle(cx - r*0.1f,  cy - r*0.4f,  r*0.09f, p);
+        canvas.drawCircle(cx + r*0.15f, cy + r*0.45f, r*0.07f, p);
+
+        // Borde
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(3f);
+        p.setColor(android.graphics.Color.argb(80, 20, 20, 20));
+        canvas.drawCircle(cx, cy, r, p);
+    }
+
+    /** Nivel 3 — Planeta rojo (tipo Marte) centrado arriba + constelación */
+    private void dibujarFondoNivel3(Canvas canvas) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setAntiAlias(true);
+        float cx = anchoPantalla * 0.5f, cy = altoPantalla * 0.12f;
+        float r  = anchoPantalla * 0.10f;
+
+        // Cuerpo rojo
+        p.setShader(new android.graphics.RadialGradient(
+                cx - r*0.3f, cy - r*0.3f, r,
+                new int[]{ android.graphics.Color.rgb(230,130, 80),
+                        android.graphics.Color.rgb(180, 60, 30),
+                        android.graphics.Color.rgb( 80, 15, 10) },
+                new float[]{ 0f, 0.55f, 1f },
+                android.graphics.Shader.TileMode.CLAMP));
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawCircle(cx, cy, r, p);
+
+        // Casquete polar blanco
+        p.setShader(null);
+        p.setColor(android.graphics.Color.argb(120, 255, 255, 255));
+        canvas.drawCircle(cx, cy - r*0.65f, r*0.28f, p);
+
+        // Borde
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(3f);
+        p.setColor(android.graphics.Color.argb(100, 60, 10, 5));
+        canvas.drawCircle(cx, cy, r, p);
+
+        // Constelación (triángulo de estrellas brillantes en esquina inferior derecha)
+        dibujarConstelacion(canvas,
+                new float[]{ anchoPantalla*0.72f, anchoPantalla*0.85f, anchoPantalla*0.90f,
+                        anchoPantalla*0.78f, anchoPantalla*0.68f },
+                new float[]{ altoPantalla*0.72f,  altoPantalla*0.65f,  altoPantalla*0.80f,
+                        altoPantalla*0.82f,  altoPantalla*0.60f });
+    }
+
+    /** Nivel 4 — Planeta verde (gas gigante) esquina inferior izquierda + nebulosa */
+    private void dibujarFondoNivel4(Canvas canvas) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setAntiAlias(true);
+
+        // Nebulosa difusa en el centro-derecha
+        p.setShader(new android.graphics.RadialGradient(
+                anchoPantalla*0.75f, altoPantalla*0.4f, anchoPantalla*0.35f,
+                new int[]{ android.graphics.Color.argb(40,  80,  0, 120),
+                        android.graphics.Color.argb(20,  40,  0,  80),
+                        android.graphics.Color.argb( 0,   0,  0,   0) },
+                new float[]{ 0f, 0.5f, 1f },
+                android.graphics.Shader.TileMode.CLAMP));
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawRect(0, 0, anchoPantalla, altoPantalla, p);
+
+        // Planeta verde
+        float cx = anchoPantalla * 0.2f, cy = altoPantalla * 0.82f;
+        float r  = anchoPantalla * 0.14f;
+        p.setShader(new android.graphics.RadialGradient(
+                cx - r*0.3f, cy - r*0.3f, r,
+                new int[]{ android.graphics.Color.rgb(100,210,120),
+                        android.graphics.Color.rgb( 30,130, 60),
+                        android.graphics.Color.rgb( 10, 50, 20) },
+                new float[]{ 0f, 0.55f, 1f },
+                android.graphics.Shader.TileMode.CLAMP));
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawCircle(cx, cy, r, p);
+
+        // Bandas atmosféricas horizontales
+        p.setShader(null);
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(r * 0.08f);
+        p.setColor(android.graphics.Color.argb(60, 20, 80, 30));
+        canvas.save();
+        canvas.clipRect(cx-r, cy-r, cx+r, cy+r);
+        for (float offset : new float[]{ -0.35f, -0.1f, 0.15f, 0.38f }) {
+            canvas.drawLine(cx-r, cy+r*offset, cx+r, cy+r*offset, p);
+        }
+        canvas.restore();
+
+        // Borde
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(3f);
+        p.setColor(android.graphics.Color.argb(100, 5, 30, 10));
+        canvas.drawCircle(cx, cy, r, p);
+    }
+
+    /** Nivel 5 — Planeta naranja gigante (tipo Júpiter) con tormenta + constelación */
+    private void dibujarFondoNivel5(Canvas canvas) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setAntiAlias(true);
+        float cx = anchoPantalla * 0.78f, cy = altoPantalla * 0.20f;
+        float r  = anchoPantalla * 0.16f;
+
+        // Cuerpo naranja
+        p.setShader(new android.graphics.RadialGradient(
+                cx - r*0.3f, cy - r*0.3f, r,
+                new int[]{ android.graphics.Color.rgb(240,180, 80),
+                        android.graphics.Color.rgb(200,100, 30),
+                        android.graphics.Color.rgb( 90, 35,  5) },
+                new float[]{ 0f, 0.55f, 1f },
+                android.graphics.Shader.TileMode.CLAMP));
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawCircle(cx, cy, r, p);
+
+        // Bandas de Júpiter
+        p.setShader(null);
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(r * 0.09f);
+        p.setColor(android.graphics.Color.argb(70, 120, 50, 10));
+        canvas.save();
+        canvas.clipRect(cx-r, cy-r, cx+r, cy+r);
+        for (float offset : new float[]{ -0.45f, -0.2f, 0.05f, 0.28f, 0.48f }) {
+            canvas.drawLine(cx-r, cy+r*offset, cx+r, cy+r*offset, p);
+        }
+        canvas.restore();
+
+        // Gran mancha roja (tormenta)
+        p.setShader(null);
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        p.setColor(android.graphics.Color.argb(150, 180, 50, 30));
+        canvas.drawOval(new android.graphics.RectF(
+                cx - r*0.22f, cy + r*0.08f, cx + r*0.22f, cy + r*0.30f), p);
+
+        // Borde
+        p.setStyle(android.graphics.Paint.Style.STROKE);
+        p.setStrokeWidth(3f);
+        p.setColor(android.graphics.Color.argb(100, 60, 20, 5));
+        canvas.drawCircle(cx, cy, r, p);
+
+        // Constelación en esquina inferior izquierda
+        dibujarConstelacion(canvas,
+                new float[]{ anchoPantalla*0.08f, anchoPantalla*0.18f, anchoPantalla*0.12f,
+                        anchoPantalla*0.22f, anchoPantalla*0.06f },
+                new float[]{ altoPantalla*0.68f,  altoPantalla*0.75f,  altoPantalla*0.83f,
+                        altoPantalla*0.62f,  altoPantalla*0.77f });
+    }
+
+    /** Nivel 6 (jefe) — Fondo rojo oscuro amenazante, sin planeta */
+    private void dibujarFondoNivel6(Canvas canvas) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setAntiAlias(true);
+
+        // Nebulosa roja difusa centrada
+        p.setShader(new android.graphics.RadialGradient(
+                anchoPantalla*0.5f, altoPantalla*0.35f, anchoPantalla*0.5f,
+                new int[]{ android.graphics.Color.argb(60, 150,  0,  0),
+                        android.graphics.Color.argb(30,  80,  0,  0),
+                        android.graphics.Color.argb( 0,   0,  0,  0) },
+                new float[]{ 0f, 0.6f, 1f },
+                android.graphics.Shader.TileMode.CLAMP));
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawRect(0, 0, anchoPantalla, altoPantalla, p);
+    }
+
+    /**
+     * Dibuja una constelación: puntos brillantes unidos por líneas tenues.
+     * xs[] e ys[] son las coordenadas de cada estrella de la constelación.
+     */
+    private void dibujarConstelacion(Canvas canvas, float[] xs, float[] ys) {
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setAntiAlias(true);
+
+        // Líneas tenues entre estrellas consecutivas
+        p.setColor(android.graphics.Color.argb(50, 180, 200, 255));
+        p.setStrokeWidth(1.5f);
+        for (int i = 0; i < xs.length - 1; i++) {
+            canvas.drawLine(xs[i], ys[i], xs[i+1], ys[i+1], p);
+        }
+
+        // Estrellas brillantes
+        p.setStyle(android.graphics.Paint.Style.FILL);
+        p.setColor(android.graphics.Color.argb(220, 220, 230, 255));
+        for (int i = 0; i < xs.length; i++) {
+            canvas.drawCircle(xs[i], ys[i], 4f, p);
+        }
+        // Destello central en la primera estrella (la más brillante)
+        p.setColor(android.graphics.Color.argb(255, 255, 255, 255));
+        canvas.drawCircle(xs[0], ys[0], 5.5f, p);
+    }
+
     private void crearDisparo() {
         switch (nivelNave) {
             case DOBLE_CANON:
@@ -624,6 +944,12 @@ public class Juego extends SurfaceView implements SurfaceHolder.Callback {
         inicializarPosiciones(canvas.getWidth(), canvas.getHeight());
 
         canvas.drawColor(Color.BLACK);
+
+        // Fondo estrellado: se dibuja primero para que quede detrás de todo
+        if (estrellasInicializadas) dibujarEstrellas(canvas);
+
+        // Fondo específico de cada nivel (planeta, luna, nebulosa...)
+        dibujarFondoNivel(canvas);
 
         // ── Intro del nivel: letrero solo en nivel 1 ─────────────────────────
         if (enFaseIntro && nivelActual == 1 && faseTransicion == FaseTransicion.JUGANDO) {
